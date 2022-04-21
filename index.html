@@ -41,7 +41,8 @@
 				// In the "real" world, you'd use data.getUint8, data.getUint16 or even
 				// TextDecoder to process raw data bytes.
 
-				log(" <- " + decoder.decode(value).replace('\r','\r <- ').replace('\n','').replace('\0',''));
+				document.getElementById("log").value = "";
+				log(decoder.decode(value).replace('\n','').replace('\0',''));
 				
 				//for (let i = 0; i < value.byteLength; i++) {
 				//	a.push('0x' + ('00' + value.getUint8(i).toString(16)).slice(-2));
