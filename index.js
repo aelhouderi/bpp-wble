@@ -20,6 +20,7 @@ var parsed_arr_ecg = [];
 var parsed_arr_ppg = [];
 var parsed_arr_index = 0;
 var xValues = [];
+var xyValues = [];
 
 var val_data_compare_ppg = 0.0;
 var val_data_compare_ecg = 0.0;
@@ -35,11 +36,13 @@ var g_num_line = 0;
 
 var dataLog = "";
 
+var downsample = 0;
+
 var raw_chart = new SmoothieChart(
     {
         millisPerPixel: 5,
         //timestampFormatter: SmoothieChart.timeFormatter,
-        interpolation: 'linear',
+        //interpolation: 'linear',
         tooltip: true,
         labels: { fontSize: 15, fillStyle: '#FFFFFF', precision: 0 },
         grid: { borderVisible: false, millisPerLine: 2000, verticalSections: 21, fillStyle: '#000000' }
@@ -53,18 +56,22 @@ var test_chart = new Chart("bpchart", {
         labels: xValues,
         datasets: [{
             fill: false,
-            pointRadius: 2,
+            pointRadius: 1,
             borderColor: "rgba(0,0,255,0.5)",
-            data: parsed_arr_ecg
+            //data: parsed_arr_ecg
+            data: xyValues
         }]
     },
     options: {
         legend: { display: false },
-        title: {
-            display: true,
-            text: "y = x * 2 + 7",
-            fontSize: 16
-        }
+        scales: {
+            xAxes: [{ticks: { display: false }}],
+          },
+        // title: {
+        //     display: true,
+        //     text: "y = x * 2 + 7",
+        //     fontSize: 16
+        // }
     }
 });
 
@@ -128,6 +135,13 @@ async function incomingData(event) {
                 if (receivedData.length == 18) {
                     state = 0;
 
+                    // if (++downsample < 5)
+                    // {
+                    //     break;
+                    // }
+
+                    downsample = 0;
+
                     ppg = 0;
                     ecg = 0;
 
@@ -148,35 +162,43 @@ async function incomingData(event) {
                     dataLog = dataLog + ppg + ', ' + ecg + '\n';
 
                     interpolate(ppg, ecg);
-
-                    parsed_arr_ecg[parsed_arr_index] = ecg;
-                    parsed_arr_ppg[parsed_arr_index++] = ppg;
-
-                    if (parsed_arr_index >= 100)
-                    {
-                        var ecg_arr = normalize(parsed_arr_ecg);
-                        var ppg_arr = normalize(parsed_arr_ppg);
-
-                        // for (var j = 0; j < parsed_arr_index; j++)
-                        // {
-                        //     var time = new Date();
-
-                        //     //ppg_ts.append(time, ppg_arr[j]);
-                        //     //ecg_ts.append(time, ecg_arr[j]);
-                        // }
-
-                        parsed_arr_index = 0;
-                        test_chart.update();
-                    }
-
-                    // var time = new Date();
-
-                    // ppg_ts.append(time, ppg);
-                    // ecg_ts.append(time, ecg);
+                    //graphRaw(ppg, ecg);
                 }
                 break;
 
         }
+    }
+}
+
+function graphRaw(ppg, ecg) {
+    var time = new Date();
+
+    ppg_ts.append(time, ppg);
+    ecg_ts.append(time, ecg);
+
+    parsed_arr_ecg[parsed_arr_index] = ecg;
+    parsed_arr_ppg[parsed_arr_index++] = ppg;
+
+    xyValues.length = 0;
+    for (var x1 = 0; x1 < parsed_arr_index; x1++) {
+        xyValues.push({ x: x1, y: parsed_arr_ecg[x1] });
+    }
+
+    if (parsed_arr_index >= 100) {
+        var ecg_arr = normalize(parsed_arr_ecg);
+        var ppg_arr = normalize(parsed_arr_ppg);
+
+        // for (var j = 0; j < parsed_arr_index; j++)
+        // {
+        //     var time = new Date();
+
+        //     //ppg_ts.append(time, ppg_arr[j]);
+        //     //ecg_ts.append(time, ecg_arr[j]);
+        // }
+
+        parsed_arr_index--;
+        parsed_arr_ecg.shift();
+        //test_chart.update();
     }
 }
 
@@ -185,6 +207,9 @@ async function onDisconnected() {
 }
 
 async function bleDisconnect() {
+
+    createSettings();
+
     if (device != null) {
         if (device.gatt.connected) {
             log("Disconnecting");
@@ -222,7 +247,7 @@ async function ble_connect() {
 
 function createTimeline() {
     document.getElementById('rawchart').width = document.getElementById('stage').clientWidth * 0.95;
-    document.getElementById('bpchart').width = document.getElementById('stage').clientWidth * 0.95;
+    //document.getElementById('bpchart').width = document.getElementById('stage').clientWidth * 0.95;
 
     raw_chart.addTimeSeries(ppg_ts, {
         strokeStyle: 'rgba(128, 0, 128, 1)',
@@ -235,7 +260,23 @@ function createTimeline() {
         lineWidth: 2
     });
 
-    raw_chart.streamTo(document.getElementById("rawchart"), 250);
+    raw_chart.streamTo(document.getElementById("rawchart"), 1000);
+}
+
+var gender;
+var mode;
+var style;
+var height;
+var weight;
+var age;
+function createSettings() {
+    gender = parseInt(document.getElementById("gender").value, 10);
+    mode = parseInt(document.getElementById("mode").value, 10);
+    style = parseInt(document.getElementById("style").value, 10);
+    height = parseInt(document.getElementById("height").value, 10);
+    weight = parseInt(document.getElementById("weight").value, 10);
+    age = parseInt(document.getElementById("age").value, 10);
+
 }
 
 function adjust_width() {
@@ -264,12 +305,7 @@ function interpolate(val_ppg, val_ecg) {
             val_data_interpolate_ppg = coef_a_ppg * x + coef_b_ppg;
             val_data_interpolate_ecg = coef_a_ecg * x + coef_b_ecg;
 
-            var time = new Date();
-
-            ppg_ts.append(time, val_data_interpolate_ppg);
-            ecg_ts.append(time, val_data_interpolate_ecg);
-            //fh_raw.write(str_csv + "\n");
-            //fh_raw.flush();
+            graphRaw(val_data_interpolate_ppg, val_data_interpolate_ecg);
         }
 
         val_line_same_start = g_num_line;

@@ -28,6 +28,50 @@
 		Save
 	</button>
 	<br />
+	<br />
+	<br />
+	<div id="settings" style="display:flex;justify-content: center; ">
+	
+		<div style="padding: 5px;">
+			<label for="mode">Mode:</label>
+			<select name="mode" id="mode">
+				<option value="1">Raw</option>
+				<option value="0">Processed</option>
+			</select>
+		</div>
+		<br />
+		<div style="padding: 5px;">
+			<label for="gender">Gender:</label>
+			<select name="gender" id="gender">
+				<option value="1">Male</option>
+				<option value="0">Female</option>
+			</select>
+		</div>
+		<br />
+		<div style="padding: 5px;">
+			<label for="style">Style:</label>
+			<select name="style" id="style">
+				<option value="1">Sitting</option>
+				<option value="0">Laying</option>
+			</select>
+		</div>
+		<br />
+		<div style="padding: 5px;">
+			<label for="height">Height:</label>
+			<input type="text" id="height" name="height" style="width: 50px;"><br><br>
+		</div>
+		<br />
+		<div style="padding: 5px;">
+			<label for="weight">Weight:</label>
+			<input type="text" id="weight" name="weight" style="width: 50px;"><br><br>
+		</div>
+		<br />
+		<div style="padding: 5px;">
+			<label for="age">Age:</label>
+			<input type="text" id="age" name="age" style="width: 50px;"><br><br>
+		</div>
+	</div>
+	<br />
 	<br />Log:<br />
 	<textarea id="log" rows="5" cols="50"></textarea>
 	<br /><br /><br />
@@ -67,7 +111,7 @@
 
 
 	</div>
-	<canvas id="bpchart" width="1200" height="300"></canvas><br />
+	<!-- <canvas id="bpchart" width="1200" height="300"></canvas><br /> -->
 </body>
 
 </html>
