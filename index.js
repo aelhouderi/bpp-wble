@@ -145,15 +145,15 @@ async function incomingData(event) {
                     ppg = 0;
                     ecg = 0;
 
-                    ppg = receivedData[4] << 16;
-                    ppg |= receivedData[5] << 8;
-                    ppg |= receivedData[6];
+                    ppg = receivedData[3] << 16;
+                    ppg |= receivedData[4] << 8;
+                    ppg |= receivedData[5];
 
-                    ecg = receivedData[7] << 16;
-                    ecg |= receivedData[8] << 8;
-                    ecg |= receivedData[9];
+                    ecg = receivedData[6] << 16;
+                    ecg |= receivedData[7] << 8;
+                    ecg |= receivedData[8];
 
-                    if (receivedData[7] > 128) {
+                    if (receivedData[6] > 128) {
                         ecg -= Math.pow(2, 24);
                     }
 
