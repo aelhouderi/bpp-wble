@@ -1,148 +1,117 @@
-
 <!DOCTYPE html>
 <html lang="en-US">
+
+<head>
+
+	<meta charset="UTF-8">
+	<title>BP Patch</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="main.css">
+	<script type="text/javascript" src="./smoothie.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
+	<!-- <script type="text/javascript" src="./chart.min.js"></script> -->
+	<script src="./index.js" defer></script>
+
+</head>
+
+<body onload="createTimeline();" onresize="adjust_width();" style="background-color: lightgrey;text-align: center">
+	<div id="stage" align='center' style="background-color: white;margin: auto; width: 90%;"></div>
+	<button class="button button1" type="button" onclick="ble_connect()">
+		Scan
+	</button>
+	<br />
+	<button class="button button2" type="button" onclick="bleDisconnect()">
+		Disconnect
+	</button>
+	<br />
+	<button class="button button3" type="button" onclick="save('bp_patch.csv', dataLog);">
+		Save
+	</button>
+	<br />
+	<br />
+	<br />
+	<div id="settings" style="display:flex;justify-content: center; ">
 	
-	<head>
+		<div style="padding: 5px;">
+			<label for="mode">Mode:</label>
+			<select name="mode" id="mode">
+				<option value="1">Raw</option>
+				<option value="0">Processed</option>
+			</select>
+		</div>
+		<br />
+		<div style="padding: 5px;">
+			<label for="gender">Gender:</label>
+			<select name="gender" id="gender">
+				<option value="1">Male</option>
+				<option value="0">Female</option>
+			</select>
+		</div>
+		<br />
+		<div style="padding: 5px;">
+			<label for="style">Style:</label>
+			<select name="style" id="style">
+				<option value="1">Sitting</option>
+				<option value="0">Laying</option>
+			</select>
+		</div>
+		<br />
+		<div style="padding: 5px;">
+			<label for="height">Height:</label>
+			<input type="text" id="height" name="height" style="width: 50px;"><br><br>
+		</div>
+		<br />
+		<div style="padding: 5px;">
+			<label for="weight">Weight:</label>
+			<input type="text" id="weight" name="weight" style="width: 50px;"><br><br>
+		</div>
+		<br />
+		<div style="padding: 5px;">
+			<label for="age">Age:</label>
+			<input type="text" id="age" name="age" style="width: 50px;"><br><br>
+		</div>
+	</div>
+	<br />
+	<br />Log:<br />
+	<textarea id="log" rows="5" cols="50"></textarea>
+	<br /><br /><br />
+
+	<div id="chart-area" style="display:none;text-align: left;">
+		<!-- <canvas id="bpchart" width="1200" height="300"></canvas><br />
+			<svg width="1200" height="30">
+				<circle cx="40" cy="15" r="10" stroke-width="0" fill="blue" />
+				<text fill="#000000" font-size="20" x="60" y="22">SPO2</text>
 		
-		<meta charset="UTF-8">
-		<title>CodeLess Web Bluetooth Application</title>
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-		<script>
-
-			var inboundChar;
-			var outboundChar;
-			var device;
-			
-			// Define the CodeLess UUIDs 
-			var CODELESS_SVC_UUID 	= "0783b03e-8535-b5a0-7140-a304d2495cb7";
-			var INBOUND_CHAR_UUID 	= "0783b03e-8535-b5a0-7140-a304d2495cb8";
-			var OUTBOUND_CHAR_UUID 	= "3bb535aa-50b2-4fbe-aa09-6b06dc59a404";
-			var CNTRL_CHAR_UUID		= "0783b03e-8535-b5a0-7140-a304d2495cb8";
-
-			// Display text in log field text area 
-			function log(text)
-			{
-				var textarea = document.getElementById('log');
-				textarea.value += "\n" + text;
-				textarea.scrollTop = textarea.scrollHeight;
-			}
-
-			// Incoming GATT notification was received
-			async function incomingData(event){
-				// Read data from BLE CodeLess peer
-				//let readInValue = await outboundChar.readValue();
-				let decoder = new TextDecoder('utf-8');
-				// Log the incoming string (format slightly)
-				//log(" <- " + decoder.decode(readInValue).replace('\r','\r <- ').replace('\n','').replace('\0',''));
-				let value = event.target.value;
-				//let a = [];
-				// Convert raw data bytes to hex values just for the sake of showing something.
-				// In the "real" world, you'd use data.getUint8, data.getUint16 or even
-				// TextDecoder to process raw data bytes.
-
-				document.getElementById("log").value = "";
-				log(decoder.decode(value).replace('\n','').replace('\0',''));
-				
-				//for (let i = 0; i < value.byteLength; i++) {
-				//	a.push('0x' + ('00' + value.getUint8(i).toString(16)).slice(-2));
-				//}
-				//log('> ' + a.join(' '));
-			}
-
-			async function onDisconnected()
-			{
-				log("Bluetooth connection terminated!");
-			}
-
-			async function bleDisconnect()
-			{
-				log("Disconnecting");
-				if (device.gatt.connected) {
-				    device.gatt.disconnect();
-				}
-				else {
-				    log('> Bluetooth Device is already disconnected');
-				}
-			}
-
-			// Scan, connect and explore CodeLess BLE device
-			async function ble_connect() {
-				try {
-					// Define a scan filter and prepare for interaction with Codeless Service
-					log('Requesting Bluetooth Device...');
-					device  = await navigator.bluetooth.requestDevice({
-						filters: [{name: 'BPP'}],
-						optionalServices: [CODELESS_SVC_UUID]
-					});	
-					device.addEventListener('gattserverdisconnected', onDisconnected);	
-					// Connect to device GATT and perform attribute discovery
-					server = await device.gatt.connect();
-					const service = await server.getPrimaryService(CODELESS_SVC_UUID);
-					//inboundChar = await service.getCharacteristic(INBOUND_CHAR_UUID);
-					//outboundChar = await service.getCharacteristic(OUTBOUND_CHAR_UUID);
-					const flowcontrolChar = await service.getCharacteristic(CNTRL_CHAR_UUID);
-					// Subscribe to notifications
-					await flowcontrolChar.startNotifications();
-					flowcontrolChar.addEventListener('characteristicvaluechanged', incomingData);
-					log('Ready to communicate!\n');
-				}
-				catch(error) {
-					log('Failed: ' + error);
-				}
-			}
-
-			// Send an AT command to the CodeLess BLE peer
-			async function sendAT(cmd) {
-				// Display the command in the log
-				log(' -> ' + cmd );
-				// Append an extra character as expected by CodeLess
-				var commandToSend = cmd + "\0";
-				try{
-					let encoder = new TextEncoder('utf-8');
-					// Send command via GATT Write request 
-					await inboundChar.writeValue(encoder.encode(commandToSend));
-				} 
-				catch(error) {
-					log('Failed: ' + error);
-				}
-			}
-
-			// If enter key was pressed by user while editing, send command immediately
-			function wasEnter(elem) {
-				if(event.key === 'Enter') {
-					sendAT(document.getElementById("cmd").value);
-				}
-			}
-
-		</script>
-
-	</head>
-
-	<body>
-
-		<h1>Blood Pressure Patch:</h1>
+				<circle cx="140" cy="15" r="10" stroke-width="0" fill="red" />
+				<text fill="#000000" font-size="20" x="160" y="22">Heart Rate</text>
+			</svg>
 		
-		<button type="button" onclick="ble_connect()">
-			Click me to scan for BPP BLE devices
-		</button>
-		<br/>
-		<button type="button" onclick="bleDisconnect()">
-			Click me to disconnect
-		</button>
-		<br/>
-		<br/>Log:<br/>
-		<textarea id="log" rows="20" cols="60" ></textarea>
-		<br/><br/><br/>
-		<!-- <button type="button" onclick="sendAT('ATrI')">
-			Send ATrI
-		</button>
-		<br/><br/>
-		<input type="text" id="cmd" onkeydown="wasEnter(this)">
-		<button type="button" onclick="sendAT(document.getElementById('cmd').value)">
-			Transmit Command
-		</button> -->
+			<hr /> -->
 
-	</body>
+		<canvas id="rawchart" width="1200" height="300"></canvas><br />
+		<svg width="1200" height="30">
+			<circle cx="40" cy="15" r="10" stroke-width="0" fill="red" />
+			<text fill="#000000" font-size="20" x="60" y="22">ECG</text>
+
+			<circle cx="140" cy="15" r="10" stroke-width="0" fill="purple" />
+			<text fill="#000000" font-size="20" x="160" y="22">PPG</text>
+
+		</svg>
+
+		<hr />
+
+		<!-- <canvas id="bpchart" width="1200" height="300"></canvas><br /> -->
+		<!-- <svg width="1200" height="30">
+			<circle cx="40" cy="15" r="10" stroke-width="0" fill="blue" />
+			<text fill="#000000" font-size="20" x="60" y="22">SPO2</text>
+
+			<circle cx="140" cy="15" r="10" stroke-width="0" fill="red" />
+			<text fill="#000000" font-size="20" x="160" y="22">Heart Rate</text>
+		</svg> -->
+
+
+	</div>
+	<!-- <canvas id="bpchart" width="1200" height="300"></canvas><br /> -->
+</body>
 
 </html>
