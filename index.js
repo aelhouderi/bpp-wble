@@ -6,6 +6,7 @@ var packet_count = 0;
 // Define the CodeLess UUIDs 
 var BPP_SVC_UUID = "0783b03e-8535-b5a0-7140-a304d2495cb7";
 var RX_CHAR_UUID   = "0783b03e-8535-b5a0-7140-a304d2495cb8";
+var TX_CHAR_UUID = "0783b03e-8535-b5a0-7140-a304d2495cba";
 
 var no_data_yet = true;
 
@@ -37,6 +38,8 @@ var g_num_line = 0;
 var dataLog = "";
 
 var downsample = 0;
+
+var settingsArr = new Uint8Array(8);
 
 var raw_chart = new SmoothieChart(
     {
@@ -165,7 +168,6 @@ async function incomingData(event) {
                     //graphRaw(ppg, ecg);
                 }
                 break;
-
         }
     }
 }
@@ -235,6 +237,11 @@ async function ble_connect() {
         server = await device.gatt.connect();
         const service = await server.getPrimaryService(BPP_SVC_UUID);
         const flowcontrolChar = await service.getCharacteristic(RX_CHAR_UUID);
+        const txChar = await service.getCharacteristic(TX_CHAR_UUID);
+
+        createSettings();
+
+        txChar.writeValue(settingsArr);
         // Subscribe to notifications
         await flowcontrolChar.startNotifications();
         flowcontrolChar.addEventListener('characteristicvaluechanged', incomingData);
@@ -263,20 +270,30 @@ function createTimeline() {
     raw_chart.streamTo(document.getElementById("rawchart"), 1000);
 }
 
-var gender;
-var mode;
-var style;
-var height;
-var weight;
-var age;
-function createSettings() {
-    gender = parseInt(document.getElementById("gender").value, 10);
-    mode = parseInt(document.getElementById("mode").value, 10);
-    style = parseInt(document.getElementById("style").value, 10);
-    height = parseInt(document.getElementById("height").value, 10);
-    weight = parseInt(document.getElementById("weight").value, 10);
-    age = parseInt(document.getElementById("age").value, 10);
+function calcChecksum()
+{
+    var    i   = 0;
+    var     bcc = 0;
 
+    for (var i = 0; i < 7; i++ )
+    {
+        /* cast */
+        bcc ^= settingsArr[i]
+    }
+
+    settingsArr[7] = bcc;
+}
+
+function createSettings() {
+    settingsArr[0] = 0x55;
+    settingsArr[4] = parseInt(document.getElementById("gender").value, 10);
+    settingsArr[6] = parseInt(document.getElementById("mode").value, 10);
+    settingsArr[5] = parseInt(document.getElementById("style").value, 10);
+    settingsArr[1] = parseInt(document.getElementById("height").value, 10);
+    settingsArr[2] = parseInt(document.getElementById("weight").value, 10);
+    settingsArr[3] = parseInt(document.getElementById("age").value, 10);
+
+    calcChecksum();
 }
 
 function adjust_width() {
@@ -319,18 +336,29 @@ function interpolate(val_ppg, val_ecg) {
 }
 
 function save(filename, data) {
-    // if (document.getElementById('add-header').checked)
-    //     data = csvHeader + data;
-    const blob = new Blob([data], { type: 'text/csv' });
-    if (window.navigator.msSaveOrOpenBlob) {
-        window.navigator.msSaveBlob(blob, filename);
+    if (document.getElementById('savebutton').value == 'Save') {
+        document.getElementById('savebutton').value = 'Saving';
+        document.getElementById("savebutton").classList.remove('button3');
+        document.getElementById("savebutton").classList.add('button3_on');
+        dataLog = "";
     }
     else {
-        const elem = window.document.createElement('a');
-        elem.href = window.URL.createObjectURL(blob);
-        elem.download = filename;
-        document.body.appendChild(elem);
-        elem.click();
-        document.body.removeChild(elem);
+        document.getElementById('savebutton').value = 'Save';
+        document.getElementById("savebutton").classList.remove('button3_on');
+        document.getElementById("savebutton").classList.add('button3');
+
+        //     data = csvHeader + data;
+        const blob = new Blob([data], { type: 'text/csv' });
+        if (window.navigator.msSaveOrOpenBlob) {
+            window.navigator.msSaveBlob(blob, filename);
+        }
+        else {
+            const elem = window.document.createElement('a');
+            elem.href = window.URL.createObjectURL(blob);
+            elem.download = filename;
+            document.body.appendChild(elem);
+            elem.click();
+            document.body.removeChild(elem);
+        }
     }
 }
