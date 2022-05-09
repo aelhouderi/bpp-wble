@@ -43,6 +43,8 @@ var settingsArr = new Uint8Array(8);
 
 var test_chart_len = 500;
 
+var alg_mode = 1;
+
 var raw_chart = new SmoothieChart(
     {
         millisPerPixel: 10,
@@ -93,6 +95,37 @@ var test_chart = new Chart("bpchart", {
     }
 });
 
+var algXvalues = ["SBP", "DBP"];
+var algYvalues = [0, 0];
+var barColors = ["red", "blue"];
+var alg_chart = new Chart("algchart", {
+    type: "bar",
+    data: {
+      labels: algXvalues,
+      datasets: [{
+        backgroundColor: barColors,
+        data: algYvalues
+      }]
+    },
+    options: {
+      legend: {display: false},
+      title: {
+        display: true,
+        text: "BP Algorithm"
+      },
+      scales: {
+        xAxes: [{
+            barPercentage: 0.5
+        }],
+        yAxes: [{
+            ticks: {
+                beginAtZero: true
+            }
+        }],
+    }
+    }
+  });
+
 // Display text in log field text area 
 function log(text) {
     var textarea = document.getElementById('log');
@@ -117,9 +150,17 @@ function normalize(arr_in) {
 async function incomingData(event) {
 
     if (no_data_yet) {
-        document.getElementById('chart-area').style = "display:inline;";
-        raw_chart.start();
-        ecg_chart.start();
+
+        if (alg_mode == 1){
+            document.getElementById('chart-area').style = "display:inline;";
+            raw_chart.start();
+            ecg_chart.start();
+        }
+        else{
+            //document.getElementById('alg-chart-area').style = "display:inline;";
+            document.getElementById('algchart').style.display = "";
+        }
+       
         no_data_yet = false;
 
         for (let x = 0; x < test_chart_len; x++) {
@@ -154,38 +195,83 @@ async function incomingData(event) {
                 if (receivedData.length == 18) {
                     state = 0;
 
-                    // if (++downsample < 5)
-                    // {
-                    //     break;
-                    // }
-
-                    downsample = 0;
-
-                    ppg = 0;
-                    ecg = 0;
-
-                    ppg = receivedData[3] << 16;
-                    ppg |= receivedData[4] << 8;
-                    ppg |= receivedData[5];
-
-                    ecg = receivedData[6] << 16;
-                    ecg |= receivedData[7] << 8;
-                    ecg |= receivedData[8];
-
-                    if (receivedData[6] > 128) {
-                        ecg -= Math.pow(2, 24);
+                    if (alg_mode == 1){
+                        parseRaw(receivedData);
+                    }
+                    else{
+                        parseProcessed(receivedData);
                     }
 
-                    document.getElementById("log").value = "";
-                    log('Packet: ' + receivedData[2] + ', ECG: ' + ecg + ', PPG: ' + ppg);
-                    dataLog = dataLog + ppg + ', ' + ecg + '\n';
+                    // ppg = 0;
+                    // ecg = 0;
 
-                    interpolate(ppg, ecg);
-                    //graphRaw(ppg, ecg);
+                    // ppg = receivedData[3] << 16;
+                    // ppg |= receivedData[4] << 8;
+                    // ppg |= receivedData[5];
+
+                    // ecg = receivedData[6] << 16;
+                    // ecg |= receivedData[7] << 8;
+                    // ecg |= receivedData[8];
+
+                    // if (receivedData[6] > 128) {
+                    //     ecg -= Math.pow(2, 24);
+                    // }
+
+                    // document.getElementById("log").value = "";
+                    // log('Packet: ' + receivedData[2] + ', ECG: ' + ecg + ', PPG: ' + ppg);
+                    // dataLog = dataLog + ppg + ', ' + ecg + '\n';
+
+                    // //interpolate(ppg, ecg);
+                    // graphRaw(ppg, ecg);
                 }
                 break;
         }
     }
+}
+
+function parseRaw(data) {
+    ppg = 0;
+    ecg = 0;
+
+    ppg = data[3] << 16;
+    ppg |= data[4] << 8;
+    ppg |= data[5];
+
+    ecg = data[6] << 16;
+    ecg |= data[7] << 8;
+    ecg |= data[8];
+
+    if (data[6] > 128) {
+        ecg -= Math.pow(2, 24);
+    }
+
+    //TODO Calculate checksum
+
+    document.getElementById("log").value = "";
+    log('Packet: ' + data[2] + ', ECG: ' + ecg + ', PPG: ' + ppg);
+    dataLog = dataLog + ppg + ', ' + ecg + '\n';
+
+    //interpolate(ppg, ecg);
+    graphRaw(ppg, ecg);
+}
+
+function parseProcessed(data) {
+    sbp = 0;
+    dbp = 0;
+    rri = 0;
+
+    sbp = data[5];
+    dbp = data[8];
+
+    rri = data[12] | (data[11] << 8);
+
+    //TODO Calculate checksum
+
+    document.getElementById("log").value = "";
+    log('SBP: ' + sbp + ', DBP: ' + dbp + ', RRI: ' + rri);
+    dataLog = dataLog + sbp + ', ' + dbp + ', ' + rri + '\n';
+
+    graphProcessed(sbp, dbp);
 }
 
 function graphRaw(ppg, ecg) {
@@ -218,6 +304,13 @@ function graphRaw(ppg, ecg) {
     //     parsed_arr_ecg.shift();
     //     test_chart.update();
     // }
+}
+
+function graphProcessed(sbp, dbp) {
+
+    algYvalues[0] = sbp;
+    algYvalues[1] = dbp;
+    alg_chart.update();
 }
 
 async function onDisconnected() {
@@ -271,6 +364,7 @@ async function ble_connect() {
 function createTimeline() {
     document.getElementById('rawchart').width = document.getElementById('stage').clientWidth * 0.95;
     document.getElementById('ecgchart').width = document.getElementById('stage').clientWidth * 0.95;
+    document.getElementById('algchart').width = document.getElementById('stage').clientWidth * 0.95;
     //document.getElementById('bpchart').width = document.getElementById('stage').clientWidth * 0.95;
 
     raw_chart.addTimeSeries(ppg_ts, {
@@ -311,6 +405,8 @@ function createSettings() {
     settingsArr[2] = parseInt(document.getElementById("weight").value, 10);
     settingsArr[3] = parseInt(document.getElementById("age").value, 10);
 
+    alg_mode = settingsArr[6];
+
     calcChecksum();
 }
 
@@ -318,6 +414,7 @@ function adjust_width() {
     //document.getElementById('vitalchart').width = document.getElementById('stage').clientWidth * 0.95;
     document.getElementById('rawchart').width = document.getElementById('stage').clientWidth * 0.95;
     document.getElementById('ecgchart').width = document.getElementById('stage').clientWidth * 0.95;
+    document.getElementById('algchart').width = document.getElementById('stage').clientWidth * 0.95;
 }
 
 function interpolate(val_ppg, val_ecg) {
