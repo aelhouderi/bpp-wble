@@ -41,14 +41,29 @@ var downsample = 0;
 
 var settingsArr = new Uint8Array(8);
 
+var test_chart_len = 500;
+
 var raw_chart = new SmoothieChart(
     {
-        millisPerPixel: 5,
+        millisPerPixel: 10,
+        //timestampFormatter: SmoothieChart.timeFormatter,
+        //interpolation: 'bezier',
+        tooltip: true,
+        labels: { fontSize: 15, fillStyle: '#FFFFFF', precision: 0 },
+        //grid: { borderVisible: false, millisPerLine: 2000, verticalSections: 21, fillStyle: '#000000' }
+
+    }
+);
+
+var ecg_chart = new SmoothieChart(
+    {
+        millisPerPixel: 10,
         //timestampFormatter: SmoothieChart.timeFormatter,
         //interpolation: 'linear',
         tooltip: true,
         labels: { fontSize: 15, fillStyle: '#FFFFFF', precision: 0 },
-        grid: { borderVisible: false, millisPerLine: 2000, verticalSections: 21, fillStyle: '#000000' }
+        //grid: { borderVisible: false, millisPerLine: 2000, verticalSections: 21, fillStyle: '#000000' },
+        //maxValue:30000,minValue:-30000
 
     }
 );
@@ -104,9 +119,10 @@ async function incomingData(event) {
     if (no_data_yet) {
         document.getElementById('chart-area').style = "display:inline;";
         raw_chart.start();
+        ecg_chart.start();
         no_data_yet = false;
 
-        for (let x = 0; x < 100; x++) {
+        for (let x = 0; x < test_chart_len; x++) {
             xValues.push(x);
           }
     }
@@ -178,30 +194,30 @@ function graphRaw(ppg, ecg) {
     ppg_ts.append(time, ppg);
     ecg_ts.append(time, ecg);
 
-    parsed_arr_ecg[parsed_arr_index] = ecg;
-    parsed_arr_ppg[parsed_arr_index++] = ppg;
+    // parsed_arr_ecg[parsed_arr_index] = ecg;
+    // parsed_arr_ppg[parsed_arr_index++] = ppg;
 
-    xyValues.length = 0;
-    for (var x1 = 0; x1 < parsed_arr_index; x1++) {
-        xyValues.push({ x: x1, y: parsed_arr_ecg[x1] });
-    }
+    // xyValues.length = 0;
+    // for (var x1 = 0; x1 < parsed_arr_index; x1++) {
+    //     xyValues.push({ x: x1, y: parsed_arr_ecg[x1] });
+    // }
 
-    if (parsed_arr_index >= 100) {
-        var ecg_arr = normalize(parsed_arr_ecg);
-        var ppg_arr = normalize(parsed_arr_ppg);
+    // if (parsed_arr_index >= test_chart_len) {
+    //     var ecg_arr = normalize(parsed_arr_ecg);
+    //     var ppg_arr = normalize(parsed_arr_ppg);
 
-        // for (var j = 0; j < parsed_arr_index; j++)
-        // {
-        //     var time = new Date();
+    //     // for (var j = 0; j < parsed_arr_index; j++)
+    //     // {
+    //     //     var time = new Date();
 
-        //     //ppg_ts.append(time, ppg_arr[j]);
-        //     //ecg_ts.append(time, ecg_arr[j]);
-        // }
+    //     //     //ppg_ts.append(time, ppg_arr[j]);
+    //     //     //ecg_ts.append(time, ecg_arr[j]);
+    //     // }
 
-        parsed_arr_index--;
-        parsed_arr_ecg.shift();
-        //test_chart.update();
-    }
+    //     parsed_arr_index--;
+    //     parsed_arr_ecg.shift();
+    //     test_chart.update();
+    // }
 }
 
 async function onDisconnected() {
@@ -254,6 +270,7 @@ async function ble_connect() {
 
 function createTimeline() {
     document.getElementById('rawchart').width = document.getElementById('stage').clientWidth * 0.95;
+    document.getElementById('ecgchart').width = document.getElementById('stage').clientWidth * 0.95;
     //document.getElementById('bpchart').width = document.getElementById('stage').clientWidth * 0.95;
 
     raw_chart.addTimeSeries(ppg_ts, {
@@ -262,12 +279,13 @@ function createTimeline() {
 
     });
 
-    raw_chart.addTimeSeries(ecg_ts, {
+    ecg_chart.addTimeSeries(ecg_ts, {
         strokeStyle: 'rgba(255, 0, 0, 1)',
-        lineWidth: 2
+        lineWidth: 1
     });
 
-    raw_chart.streamTo(document.getElementById("rawchart"), 1000);
+    raw_chart.streamTo(document.getElementById("rawchart"));
+    ecg_chart.streamTo(document.getElementById("ecgchart"));
 }
 
 function calcChecksum()
@@ -299,6 +317,7 @@ function createSettings() {
 function adjust_width() {
     //document.getElementById('vitalchart').width = document.getElementById('stage').clientWidth * 0.95;
     document.getElementById('rawchart').width = document.getElementById('stage').clientWidth * 0.95;
+    document.getElementById('ecgchart').width = document.getElementById('stage').clientWidth * 0.95;
 }
 
 function interpolate(val_ppg, val_ecg) {
